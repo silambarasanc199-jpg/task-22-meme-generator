@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meme Generator</title>
+<style>
+  :root {
+    --paper: #eef0e9;
+    --ink: #16241c;
+    --line: #16241c;
+    --accent: #ff5c39;
+    --accent-ink: #16241c;
+    --panel: #ffffff;
+    --muted: #5c6a5f;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Courier New', ui-monospace, Menlo, monospace;
+  }
+
+  body {
+    min-height: 100vh;
+    padding: 32px 20px 64px;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  header.page {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 3px solid var(--line);
+    padding-bottom: 16px;
+    margin-bottom: 28px;
+  }
+
+  header.page h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 2.4rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  header.page h1 span {
+    color: var(--accent);
+  }
+
+  header.page p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .stage {
+    background: var(--panel);
+    border: 3px solid var(--line);
+    padding: 18px;
+  }
+
+  .stage-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin: 0 0 12px;
+  }
+
+  #memeCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    background:
+      linear-gradient(45deg, #dcdfd4 25%, transparent 25%) -10px 0/20px 20px,
+      linear-gradient(-45deg, #dcdfd4 25%, transparent 25%) -10px 0/20px 20px,
+      linear-gradient(45deg, transparent 75%, #dcdfd4 75%) -10px 0/20px 20px,
+      linear-gradient(-45deg, transparent 75%, #dcdfd4 75%) -10px 0/20px 20px,
+      #eceee6;
+    cursor: default;
+    touch-action: none;
+  }
+
+  .stage-hint {
+    margin: 12px 0 0;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .drop {
+    margin-top: 16px;
+    border: 2px dashed var(--line);
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--paper);
+    transition: background 0.15s ease;
+  }
+  .drop:hover, .drop.dragover { background: #e2e6d8; }
+  .drop input { display: none; }
+  .drop-title { font-weight: bold; margin: 0 0 4px; }
+  .drop-sub { margin: 0; font-size: 0.75rem; color: var(--muted); }
+
+  .panel {
+    background: var(--panel);
+    border: 3px solid var(--line);
+  }
+
+  .panel-section {
+    padding: 18px;
+    border-bottom: 2px solid var(--line);
+  }
+  .panel-section:last-child { border-bottom: none; }
+
+  .panel-section h2 {
+    font-family: Georgia, serif;
+    font-size: 1rem;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-section h2::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  label {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin: 0 0 4px;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+
+  textarea, select, input[type="range"], input[type="color"], input[type="number"] {
+    font-family: inherit;
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 46px;
+    border: 2px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    padding: 8px 10px;
+    font-size: 0.95rem;
+  }
+  textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .row {
+    display: flex;
+    gap: 12px;
+  }
+  .row > .field { flex: 1; }
+
+  select {
+    width: 100%;
+    border: 2px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    padding: 7px 8px;
+    font-size: 0.85rem;
+  }
+
+  .range-value {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  .swatches {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  input[type="color"] {
+    width: 40px;
+    height: 32px;
+    border: 2px solid var(--line);
+    padding: 0;
+    background: none;
+    cursor: pointer;
+  }
+
+  .btn {
+    font-family: inherit;
+    border: 2px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    width: 100%;
+  }
+  .btn:hover { background: var(--paper); }
+  .btn.primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--line);
+    font-weight: bold;
+  }
+  .btn.primary:hover { background: #ff744f; }
+  .btn.ghost {
+    background: transparent;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .footnote {
+    margin-top: 18px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    line-height: 1.5;
+    border-top: 2px solid var(--line);
+    padding-top: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div>
+      <h1>Meme<span>Forge</span></h1>
+      <p>upload an image · drag the text · export a .png</p>
+    </div>
+  </header>
+
+  <div class="layout">
+
+    <div class="stage">
+      <p class="stage-label">CANVAS PREVIEW</p>
+      <canvas id="memeCanvas" width="800" height="800"></canvas>
+      <p class="stage-hint">Drag the top or bottom line directly on the canvas to reposition it.</p>
+
+      <div class="drop" id="dropZone">
+        <input type="file" id="fileInput" accept="image/*">
+        <p class="drop-title">Tap to upload an image</p>
+        <p class="drop-sub">or drag and drop here · JPG / PNG, any size</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-section">
+        <h2>Text</h2>
+        <div class="field">
+          <label for="topText">Top text</label>
+          <textarea id="topText" placeholder="ONE DOES NOT SIMPLY">TOP TEXT</textarea>
+        </div>
+        <div class="field">
+          <label for="bottomText">Bottom text</label>
+          <textarea id="bottomText" placeholder="WALK INTO MORDOR">BOTTOM TEXT</textarea>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2>Style</h2>
+        <div class="field">
+          <label for="fontFamily">Font</label>
+          <select id="fontFamily">
+            <option value="Impact, 'Arial Black', sans-serif" selected>Impact (classic)</option>
+            <option value="'Arial Black', Arial, sans-serif">Arial Black</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Courier New', monospace">Courier</option>
+            <option value="'Comic Sans MS', cursive">Comic Sans</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Text color</label>
+            <div class="swatches">
+              <input type="color" id="textColor" value="#ffffff">
+            </div>
+          </div>
+          <div class="field">
+            <label>Outline color</label>
+            <div class="swatches">
+              <input type="color" id="strokeColor" value="#000000">
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="range-value"><span>Font size</span><span id="fontSizeVal">48px</span></div>
+          <input type="range" id="fontSize" min="16" max="120" value="48">
+        </div>
+        <div class="field">
+          <div class="range-value"><span>Outline width</span><span id="strokeWidthVal">6px</span></div>
+          <input type="range" id="strokeWidth" min="0" max="16" value="6">
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h2>Export</h2>
+        <div class="btn-row">
+          <button class="btn" id="resetBtn">Reset positions</button>
+          <button class="btn primary" id="downloadBtn">Download image</button>
+        </div>
+        <p class="footnote">
+          Built with the HTML5 Canvas API. Text is drawn directly onto the canvas and exported via <code>canvas.toDataURL()</code>. Long lines auto-wrap so they stay inside the frame.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  const canvas = document.getElementById('memeCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const fileInput = document.getElementById('fileInput');
+  const dropZone = document.getElementById('dropZone');
+  const topTextEl = document.getElementById('topText');
+  const bottomTextEl = document.getElementById('bottomText');
+  const fontFamilyEl = document.getElementById('fontFamily');
+  const textColorEl = document.getElementById('textColor');
+  const strokeColorEl = document.getElementById('strokeColor');
+  const fontSizeEl = document.getElementById('fontSize');
+  const strokeWidthEl = document.getElementById('strokeWidth');
+  const fontSizeVal = document.getElementById('fontSizeVal');
+  const strokeWidthVal = document.getElementById('strokeWidthVal');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let img = null;
+  let imgDrawRect = { x: 0, y: 0, w: 0, h: 0 };
+
+  // Default fractional positions (relative to canvas height) for top/bottom text baselines
+  let topFrac = 0.12;
+  let bottomFrac = 0.88;
+
+  let dragging = null; // 'top' | 'bottom' | null
+
+  function placeholderDraw() {
+    canvas.width = 800;
+    canvas.height = 800;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#eceee6';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#c7cbbc';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 8]);
+    ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#8a9184';
+    ctx.font = '20px Courier New, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('upload an image to begin', canvas.width / 2, canvas.height / 2);
+    imgDrawRect = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+  }
+
+  function loadImageFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const image = new Image();
+      image.onload = function () {
+        img = image;
+        fitCanvasToImage();
+        render();
+      };
+      image.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function fitCanvasToImage() {
+    const maxDim = 900;
+    let w = img.width, h = img.height;
+    if (w > maxDim || h > maxDim) {
+      const scale = maxDim / Math.max(w, h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+    canvas.width = w;
+    canvas.height = h;
+    imgDrawRect = { x: 0, y: 0, w, h };
+  }
+
+  function wrapText(text, maxWidth, fontSizePx) {
+    const words = text.split(/\s+/).filter(Boolean);
+    const lines = [];
+    let current = '';
+    for (const word of words) {
+      const test = current ? current + ' ' + word : word;
+      if (ctx.measureText(test).width > maxWidth && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = test;
+      }
+    }
+    if (current) lines.push(current);
+    return lines.length ? lines : [''];
+  }
+
+  function drawTextBlock(text, centerYFrac) {
+    if (!text) return null;
+    const fontSize = parseInt(fontSizeEl.value, 10);
+    const family = fontFamilyEl.value;
+    ctx.font = `bold ${fontSize}px ${family}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const maxWidth = canvas.width * 0.9;
+    const lines = wrapText(text.toUpperCase(), maxWidth, fontSize);
+    const lineHeight = fontSize * 1.15;
+    const blockHeight = lineHeight * lines.length;
+    const centerY = canvas.height * centerYFrac;
+    const startY = centerY - blockHeight / 2 + lineHeight / 2;
+
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.strokeStyle = strokeColorEl.value;
+    ctx.lineWidth = parseInt(strokeWidthEl.value, 10);
+    ctx.fillStyle = textColorEl.value;
+
+    lines.forEach((line, i) => {
+      const y = startY + i * lineHeight;
+      if (ctx.lineWidth > 0) ctx.strokeText(line, canvas.width / 2, y);
+      ctx.fillText(line, canvas.width / 2, y);
+    });
+
+    return { top: centerY - blockHeight / 2, bottom: centerY + blockHeight / 2 };
+  }
+
+  function render() {
+    if (!img) {
+      placeholderDraw();
+      return;
+    }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    drawTextBlock(topTextEl.value, topFrac);
+    drawTextBlock(bottomTextEl.value, bottomFrac);
+  }
+
+  // --- Dragging text on canvas ---
+  function canvasPointFromEvent(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+    const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+    const scaleY = canvas.height / rect.height;
+    return { y: (clientY - rect.top) * scaleY };
+  }
+
+  function pickHandle(y) {
+    const topY = canvas.height * topFrac;
+    const bottomY = canvas.height * bottomFrac;
+    const threshold = canvas.height * 0.12;
+    if (Math.abs(y - topY) < threshold) return 'top';
+    if (Math.abs(y - bottomY) < threshold) return 'bottom';
+    return null;
+  }
+
+  function onDragStart(evt) {
+    if (!img) return;
+    const p = canvasPointFromEvent(evt);
+    dragging = pickHandle(p.y);
+    if (dragging) evt.preventDefault();
+  }
+  function onDragMove(evt) {
+    if (!dragging) return;
+    evt.preventDefault();
+    const p = canvasPointFromEvent(evt);
+    const frac = Math.min(0.97, Math.max(0.03, p.y / canvas.height));
+    if (dragging === 'top') topFrac = frac;
+    else bottomFrac = frac;
+    render();
+  }
+  function onDragEnd() { dragging = null; }
+
+  canvas.addEventListener('mousedown', onDragStart);
+  window.addEventListener('mousemove', onDragMove);
+  window.addEventListener('mouseup', onDragEnd);
+  canvas.addEventListener('touchstart', onDragStart, { passive: false });
+  window.addEventListener('touchmove', onDragMove, { passive: false });
+  window.addEventListener('touchend', onDragEnd);
+
+  // --- Upload handling ---
+  fileInput.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files[0]) loadImageFile(e.target.files[0]);
+  });
+  dropZone.addEventListener('click', () => fileInput.click());
+  ['dragover', 'dragenter'].forEach(evt =>
+    dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.add('dragover'); })
+  );
+  ['dragleave', 'drop'].forEach(evt =>
+    dropZone.addEventListener(evt, (e) => { e.preventDefault(); dropZone.classList.remove('dragover'); })
+  );
+  dropZone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) loadImageFile(e.dataTransfer.files[0]);
+  });
+
+  // --- Controls ---
+  [topTextEl, bottomTextEl, fontFamilyEl, textColorEl, strokeColorEl].forEach(el =>
+    el.addEventListener('input', render)
+  );
+  fontSizeEl.addEventListener('input', () => {
+    fontSizeVal.textContent = fontSizeEl.value + 'px';
+    render();
+  });
+  strokeWidthEl.addEventListener('input', () => {
+    strokeWidthVal.textContent = strokeWidthEl.value + 'px';
+    render();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    topFrac = 0.12;
+    bottomFrac = 0.88;
+    render();
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = 'meme.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // Init
+  placeholderDraw();
+})();
+</script>
+</body>
+</html>
